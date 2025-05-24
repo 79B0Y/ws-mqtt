@@ -1,111 +1,154 @@
 
-# WebSocket ↔ MQTT Bridge (Dynamic WebSocket URL via MQTT)
+# WebSocket ↔ MQTT Bridge (Verbose Edition)
 
-A Python-based bridge that connects to an MQTT broker and listens for WebSocket URLs via MQTT topic. Once a WebSocket URL is received, it connects to the WebSocket server and bridges messages between WebSocket and MQTT.
-
----
-
-## 📦 Features
-
-- MQTT is used to dynamically set the WebSocket URL
-- WebSocket → MQTT message forwarding
-- MQTT → WebSocket command forwarding
-- Auto-reconnect on WebSocket failure
-- YAML configuration for MQTT only
+This document provides a comprehensive **design overview** and **usage guide** for the `ws-mqtt` bridge tool that enables seamless integration between a WebSocket server and an MQTT broker.
 
 ---
 
-## 🧱 Requirements
+## 📌 Overview
 
-- Python 3.7+
-- MQTT Broker (e.g., Mosquitto)
-- Optional: [n8n](https://n8n.io) for message automation
+`ws-mqtt` is a Python-based tool that dynamically bridges WebSocket streams and MQTT topics. It is designed to be:
+
+- **Dynamic**: WebSocket URL is provided via MQTT (`bridge/wsurl`)
+- **Bidirectional**: Supports sending/receiving messages to/from WebSocket and MQTT
+- **Observable**: All major actions are logged to console and status events are published to MQTT
+- **Easy to Integrate**: Compatible with n8n and Home Assistant via MQTT
 
 ---
 
-## 🚀 Installation
+## ⚙️ System Design
 
+### MQTT Topics
+
+| Topic               | Direction        | Purpose                                           |
+|--------------------|------------------|---------------------------------------------------|
+| `bridge/wsurl`     | MQTT → Bridge    | Dynamically sets WebSocket URL                   |
+| `bridge/incoming`  | Bridge → MQTT    | Publishes messages received from WebSocket       |
+| `bridge/outgoing`  | MQTT → Bridge    | Sends MQTT-published commands to WebSocket       |
+| `bridge/status`    | Bridge → MQTT    | Publishes status updates (JSON)                  |
+
+### Status Messages (JSON format)
+
+Published to `bridge/status`:
+
+```json
+{
+  "type": "ws_connected",
+  "info": {
+    "url": "ws://192.168.0.10:8080"
+  },
+  "ts": 1716541512.825
+}
+```
+
+Possible types:
+- `mqtt_connected`
+- `mqtt_disconnected`
+- `ws_connected`
+- `ws_disconnected`
+- `ws_error`
+
+---
+
+## 📦 Installation
+
+1. Extract the package:
 ```bash
-git clone https://github.com/yourname/ws-mqtt-bridge.git
-cd ws-mqtt-bridge
+unzip ws-mqtt-verbose.zip
+cd ws-mqtt
+```
+
+2. Install the package:
+```bash
 pip install .
 ```
 
----
-
-## 🛠 Configuration (`config.yaml`)
-
-```yaml
-mqtt:
-  broker: "mqtt://192.168.2.3"
-  username: "your_username"
-  password: "your_password"
-  publish_topic: "bridge/incoming"
-  subscribe_topic: "bridge/outgoing"
-  ws_url_topic: "bridge/wsurl"
+3. Prepare configuration file:
+```bash
+cp config.yaml.example config.yaml
 ```
 
 ---
 
-## 📡 MQTT Protocol Design
+## 🛠️ Configuration (`config.yaml`)
 
-| Topic             | Direction         | Description |
-|------------------|-------------------|-------------|
-| `bridge/wsurl`   | MQTT → Bridge     | Set the WebSocket URL dynamically |
-| `bridge/incoming`| WS → MQTT         | Data from WebSocket gets published here |
-| `bridge/outgoing`| MQTT → WS (opt.)  | Commands to be sent to the WebSocket |
+Example:
 
-Example: Send a WebSocket URL to connect
+```yaml
+mqtt:
+  broker: "127.0.0.1"
+  username: "admin"
+  password: "admin"
+  publish_topic: "bridge/incoming"
+  subscribe_topic: "bridge/outgoing"
+  ws_url_topic: "bridge/wsurl"
+  status_topic: "bridge/status"
+```
 
+Place `config.yaml` in the **same directory** where you run the `ws-mqtt` command.
+
+---
+
+## 🚀 Usage
+
+1. Start the bridge:
 ```bash
-mosquitto_pub -t bridge/wsurl -m "wss://example.com/ws"
+ws-mqtt
+```
+
+2. Use MQTT to send a WebSocket URL:
+```bash
+mosquitto_pub -t bridge/wsurl -m "ws://192.168.0.100:8080/ws"
+```
+
+3. Send a command from MQTT to WebSocket:
+```bash
+mosquitto_pub -t bridge/outgoing -m '{"command":"ping"}'
+```
+
+4. Observe messages returned from WebSocket via:
+```bash
+mosquitto_sub -t bridge/incoming
+```
+
+5. Monitor status messages:
+```bash
+mosquitto_sub -t bridge/status
 ```
 
 ---
 
 ## 🔁 Integration with n8n
 
-You can use `MQTT Trigger` and `MQTT Publish` nodes in n8n:
+You can use the following nodes:
 
-### 1. Trigger WebSocket Connection
-
-- **Node**: `MQTT Publish`
-- **Topic**: `bridge/wsurl`
-- **Payload**: `"wss://your.websocket.server/path"`
-
-### 2. Receive WebSocket Messages
-
-- **Node**: `MQTT Trigger`
-- **Topic**: `bridge/incoming`
-- You’ll get WebSocket data as message payload here
-
-### 3. Send Commands to WebSocket
-
-- **Node**: `MQTT Publish`
-- **Topic**: `bridge/outgoing`
-- **Payload**: Any valid command your WS server expects
-
-These nodes require an `MQTT Broker` credential configured in n8n with same broker info as in `config.yaml`.
+- **MQTT Publish** to `bridge/wsurl` — set WebSocket URL
+- **MQTT Publish** to `bridge/outgoing` — send control commands
+- **MQTT Trigger** from `bridge/incoming` — receive WS responses
+- **MQTT Trigger** from `bridge/status` — monitor bridge state
 
 ---
 
-## ▶️ Run the Bridge
+## 🔒 Security Tips
 
-```bash
-ws-mqtt
-```
-
-Console will show status logs.
+- Enable MQTT username/password auth (already supported)
+- Add TLS with Mosquitto (not yet handled in code)
+- Consider allowing only internal network access
 
 ---
 
-## 🧪 Testing Tools
+## 🧩 Extension Ideas
 
-- [MQTT Explorer](https://mqtt-explorer.com) for MQTT
-- [wscat](https://github.com/websockets/wscat) to emulate WebSocket server
+- Support multiple WebSocket connections
+- Persistent WebSocket reconnect
+- Retained status via MQTT
+- Message queueing and retry
+- Dockerization and systemd service wrapper
 
 ---
 
 ## 📄 License
 
 MIT
+
+(C) 2024 by LinknLink – Customized for AIoT applications and edge automation.
