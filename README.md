@@ -37,7 +37,7 @@ pip install .
 
 ```yaml
 mqtt:
-  broker: "mqtt://localhost:1883"
+  broker: "mqtt://192.168.2.3"
   username: "your_username"
   password: "your_password"
   publish_topic: "bridge/incoming"
