@@ -54,6 +54,7 @@ Every 10 minutes, the bridge publishes the following JSON to `bridge/status`:
   "type": "periodic_status",
   "info": {
     "mqtt": "connected",
+    "mqtt_broker": "127.0.0.1",
     "websocket": "connected",
     "ws_url": "ws://192.168.1.100/ws"
   },
