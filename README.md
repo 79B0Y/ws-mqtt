@@ -1,7 +1,7 @@
 
 # WebSocket ↔ MQTT Bridge (v0.5)
 
-This document describes the design, configuration, and usage of `ws-mqtt` v0.4, which connects WebSocket servers and MQTT brokers with advanced status reporting and bi-directional message bridging.
+This document describes the design, configuration, and usage of `ws-mqtt` v0.5, which connects WebSocket servers and MQTT brokers with advanced status reporting and bi-directional message bridging.
 
 ---
 
