@@ -1,78 +1,21 @@
 
-# WebSocket ↔ MQTT Bridge (Verbose Edition)
+# WebSocket ↔ MQTT Bridge (v0.4 - Periodic Status Push Enabled)
 
-This document provides a comprehensive **design overview** and **usage guide** for the `ws-mqtt` bridge tool that enables seamless integration between a WebSocket server and an MQTT broker.
-
----
-
-## 📌 Overview
-
-`ws-mqtt` is a Python-based tool that dynamically bridges WebSocket streams and MQTT topics. It is designed to be:
-
-- **Dynamic**: WebSocket URL is provided via MQTT (`bridge/wsurl`)
-- **Bidirectional**: Supports sending/receiving messages to/from WebSocket and MQTT
-- **Observable**: All major actions are logged to console and status events are published to MQTT
-- **Easy to Integrate**: Compatible with n8n and Home Assistant via MQTT
+This document describes the design, configuration, and usage of `ws-mqtt` v0.4, which connects WebSocket servers and MQTT brokers with advanced status reporting and bi-directional message bridging.
 
 ---
 
-## ⚙️ System Design
+## 📦 Key Features
 
-### MQTT Topics
-
-| Topic               | Direction        | Purpose                                           |
-|--------------------|------------------|---------------------------------------------------|
-| `bridge/wsurl`     | MQTT → Bridge    | Dynamically sets WebSocket URL                   |
-| `bridge/incoming`  | Bridge → MQTT    | Publishes messages received from WebSocket       |
-| `bridge/outgoing`  | MQTT → Bridge    | Sends MQTT-published commands to WebSocket       |
-| `bridge/status`    | Bridge → MQTT    | Publishes status updates (JSON)                  |
-
-### Status Messages (JSON format)
-
-Published to `bridge/status`:
-
-```json
-{
-  "type": "ws_connected",
-  "info": {
-    "url": "ws://192.168.0.10:8080"
-  },
-  "ts": 1716541512.825
-}
-```
-
-Possible types:
-- `mqtt_connected`
-- `mqtt_disconnected`
-- `ws_connected`
-- `ws_disconnected`
-- `ws_error`
+- ✅ Receives WebSocket URL dynamically via MQTT (`bridge/wsurl`)
+- 🔁 Bridges messages between WebSocket and MQTT
+- 📡 Sends automatic status reports to `bridge/status`
+- 📥 Supports MQTT-initiated status requests via `bridge/status/get`
+- 🕒 Sends **periodic status updates every 10 minutes**
 
 ---
 
-## 📦 Installation
-
-1. Extract the package:
-```bash
-unzip ws-mqtt-verbose.zip
-cd ws-mqtt
-```
-
-2. Install the package:
-```bash
-pip install .
-```
-
-3. Prepare configuration file:
-```bash
-cp config.yaml.example config.yaml
-```
-
----
-
-## 🛠️ Configuration (`config.yaml`)
-
-Example:
+## 📑 Configuration (`config.yaml`)
 
 ```yaml
 mqtt:
@@ -83,72 +26,111 @@ mqtt:
   subscribe_topic: "bridge/outgoing"
   ws_url_topic: "bridge/wsurl"
   status_topic: "bridge/status"
+  status_request_topic: "bridge/status/get"
 ```
 
-Place `config.yaml` in the **same directory** where you run the `ws-mqtt` command.
+Place `config.yaml` in the same directory where you run `ws-mqtt`.
+
+---
+
+## 📡 MQTT Topic Overview
+
+| Topic               | Direction        | Description                                      |
+|--------------------|------------------|--------------------------------------------------|
+| `bridge/wsurl`     | MQTT → Bridge    | Dynamically configure WebSocket URL              |
+| `bridge/incoming`  | Bridge → MQTT    | Messages received from WebSocket                 |
+| `bridge/outgoing`  | MQTT → Bridge    | Messages to send to WebSocket                    |
+| `bridge/status`    | Bridge → MQTT    | Bridge status reports                            |
+| `bridge/status/get`| MQTT → Bridge    | Trigger status report immediately                |
+
+---
+
+## 🕒 Periodic Status Push
+
+Every 10 minutes, the bridge publishes the following JSON to `bridge/status`:
+
+```json
+{
+  "type": "periodic_status",
+  "info": {
+    "mqtt": "connected",
+    "websocket": "connected",
+    "ws_url": "ws://192.168.1.100/ws"
+  },
+  "ts": 1716543030.153
+}
+```
 
 ---
 
 ## 🚀 Usage
 
-1. Start the bridge:
+### Installation
+
+```bash
+unzip ws-mqtt-v0.4-periodic.zip
+cd ws-mqtt
+pip install .
+cp config.yaml.example config.yaml  # or edit manually
+```
+
+### Start the bridge
+
 ```bash
 ws-mqtt
 ```
 
-2. Use MQTT to send a WebSocket URL:
+### Send WebSocket URL via MQTT
+
 ```bash
 mosquitto_pub -t bridge/wsurl -m "ws://192.168.0.100:8080/ws"
 ```
 
-3. Send a command from MQTT to WebSocket:
+### Send a message to WebSocket
+
 ```bash
-mosquitto_pub -t bridge/outgoing -m '{"command":"ping"}'
+mosquitto_pub -t bridge/outgoing -m '{"command": "ping"}'
 ```
 
-4. Observe messages returned from WebSocket via:
+### Receive message from WebSocket
+
 ```bash
 mosquitto_sub -t bridge/incoming
 ```
 
-5. Monitor status messages:
+### Request status manually
+
 ```bash
+mosquitto_pub -t bridge/status/get -m ""
 mosquitto_sub -t bridge/status
 ```
 
 ---
 
-## 🔁 Integration with n8n
+## 📡 Integration with n8n
 
-You can use the following nodes:
-
-- **MQTT Publish** to `bridge/wsurl` — set WebSocket URL
-- **MQTT Publish** to `bridge/outgoing` — send control commands
-- **MQTT Trigger** from `bridge/incoming` — receive WS responses
-- **MQTT Trigger** from `bridge/status` — monitor bridge state
+- Use **MQTT Publish** node to `bridge/wsurl` or `bridge/outgoing`
+- Use **MQTT Trigger** node for `bridge/incoming` and `bridge/status`
 
 ---
 
 ## 🔒 Security Tips
 
-- Enable MQTT username/password auth (already supported)
-- Add TLS with Mosquitto (not yet handled in code)
-- Consider allowing only internal network access
+- Use strong MQTT authentication
+- Isolate network access or use TLS
+- Restrict `bridge/status/get` topic if needed
 
 ---
 
-## 🧩 Extension Ideas
+## 🛠 Possible Extensions
 
-- Support multiple WebSocket connections
-- Persistent WebSocket reconnect
-- Retained status via MQTT
-- Message queueing and retry
-- Dockerization and systemd service wrapper
+- Configurable status interval
+- Add request_id to status responses
+- Status caching and REST endpoint
+- Docker container + health probe
 
 ---
 
 ## 📄 License
 
-MIT
-
-(C) 2024 by LinknLink – Customized for AIoT applications and edge automation.
+MIT — Developed for LinknLink AIoT integration.
