@@ -1,0 +1,9 @@
+mqtt:
+  broker: "127.0.0.1"
+  username: "admin"
+  password: "admin"
+  publish_topic: "bridge/incoming"
+  subscribe_topic: "bridge/outgoing"
+  ws_url_topic: "bridge/wsurl"
+  status_topic: "bridge/status"
+  status_request_topic: "bridge/status/get"
